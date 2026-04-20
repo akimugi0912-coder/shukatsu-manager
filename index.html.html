@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>就活マネージャー</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F7F6F2; --surface:#FFFFFF; --surface2:#F0EFE9;
+  --border:rgba(0,0,0,0.08); --border-md:rgba(0,0,0,0.14);
+  --text:#1A1916; --text-sub:#6B6A65; --text-hint:#A8A79F;
+  --blue:#2563EB; --blue-bg:#EFF4FF; --blue-text:#1D4ED8;
+  --red:#DC2626;  --red-bg:#FEF2F2;  --red-text:#B91C1C;
+  --amber:#D97706;--amber-bg:#FFFBEB;--amber-text:#92400E;
+  --green:#059669;--green-bg:#ECFDF5;--green-text:#065F46;
+  --purple:#7C3AED;--purple-bg:#F5F3FF;--purple-text:#5B21B6;
+  --radius:10px; --radius-lg:14px; --radius-xl:20px;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+.app{display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.logo{font-weight:700;font-size:15px;color:var(--text);padding:0 .5rem 1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text-sub);font-size:13px;font-weight:500;transition:all .15s;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--text);color:white}
+.nav-icon{font-size:15px;width:20px;text-align:center}
+.sidebar-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border)}
+.sidebar-stats{font-size:11px;color:var(--text-hint);padding:0 .5rem}
+.sidebar-stat{display:flex;justify-content:space-between;margin-bottom:4px}
+.sidebar-stat-val{font-weight:700;font-family:'DM Mono',monospace;color:var(--text-sub)}
+
+/* Main */
+.main{margin-left:220px;flex:1;padding:2rem;max-width:calc(100% - 220px)}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.75rem;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--text);color:white}.btn-primary:hover{background:#333}
+.btn-outline{background:transparent;border:1px solid var(--border-md);color:var(--text-sub)}.btn-outline:hover{background:var(--surface2)}
+.btn-danger{background:var(--red-bg);color:var(--red-text);border:1px solid transparent}.btn-danger:hover{background:#fee2e2}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:1.75rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)}
+.stat-label{font-size:11px;color:var(--text-hint);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-num{font-size:28px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-1px}
+
+/* Views */
+.view{display:none}.view.active{display:block}
+
+/* Calendar */
+.cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:1.5rem;box-shadow:var(--shadow)}
+.cal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+.cal-month-nav{display:flex;align-items:center;gap:10px}
+.cal-month-label{font-size:17px;font-weight:700;min-width:120px}
+.cal-nav-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cal-nav-btn:hover{background:var(--border)}
+.legend{display:flex;gap:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sub)}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+.cal-grid-header{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin-bottom:6px}
+.cal-day-name{text-align:center;font-size:11px;font-weight:500;color:var(--text-hint);padding:4px 0}
+.cal-day-name:first-child{color:#EF4444}.cal-day-name:last-child{color:var(--blue)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-cell{min-height:72px;background:var(--surface2);border-radius:var(--radius);padding:6px;cursor:pointer;border:1px solid transparent;transition:border-color .15s}
+.cal-cell:hover{border-color:var(--border-md)}
+.cal-cell.other-month{opacity:.3;pointer-events:none}
+.cal-cell.today{border-color:var(--blue)}.cal-cell.today .cal-date{color:var(--blue)}
+.cal-date{font-size:12px;font-weight:500;color:var(--text-sub);margin-bottom:3px;font-family:'DM Mono',monospace}
+.cal-dot{font-size:9px;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;font-weight:500}
+.t-interview{background:var(--blue-bg);color:var(--blue-text)}
+.t-seminar{background:var(--purple-bg);color:var(--purple-text)}
+.t-deadline{background:var(--red-bg);color:var(--red-text)}
+.t-exam{background:var(--amber-bg);color:var(--amber-text)}
+.t-other{background:var(--green-bg);color:var(--green-text)}
+
+/* Company list */
+.company-grid{display:flex;flex-direction:column;gap:8px}
+.company-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.company-card:hover{box-shadow:var(--shadow-md);border-color:var(--border-md)}
+.company-avatar{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.company-info{flex:1;min-width:0}
+.company-name{font-size:14px;font-weight:600}
+.company-meta{font-size:12px;color:var(--text-sub);margin-top:1px}
+.company-actions{display:flex;gap:6px;align-items:center}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px}
+.s-considering{background:var(--purple-bg);color:var(--purple-text)}
+.s-applied{background:var(--blue-bg);color:var(--blue-text)}
+.s-exam{background:var(--amber-bg);color:var(--amber-text)}
+.s-interview{background:var(--green-bg);color:var(--green-text)}
+.s-offer{background:#F0FDF4;color:#14532D}
+.s-rejected{background:var(--red-bg);color:var(--red-text)}
+
+/* Reminders */
+.reminder-grid{display:flex;flex-direction:column;gap:8px}
+.reminder-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 18px;display:flex;align-items:flex-start;gap:14px;box-shadow:var(--shadow)}
+.reminder-date-box{min-width:52px;text-align:center;border-radius:var(--radius);padding:8px 6px;flex-shrink:0}
+.r-month{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.r-day{font-size:24px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;margin-top:2px}
+.reminder-body{flex:1;min-width:0}
+.reminder-title{font-size:14px;font-weight:600}
+.reminder-company{font-size:12px;color:var(--text-sub);margin-top:2px}
+.reminder-memo{font-size:12px;color:var(--text-hint);margin-top:5px;font-style:italic;border-left:2px solid var(--border);padding-left:8px}
+.reminder-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.reminder-days-left{font-size:11px;font-weight:700;font-family:'DM Mono',monospace}
+
+/* Modal base */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:1000;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-xl);padding:1.75rem;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.15);max-height:90vh;overflow-y:auto}
+.cmodal{background:var(--surface);border-radius:var(--radius-xl);padding:1.75rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.15);max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.modal-title{font-size:17px;font-weight:700}
+.modal-close{background:var(--surface2);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text-sub)}
+.modal-close:hover{background:var(--border)}
+.form-row{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-sub);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--bg);border:1px solid var(--border-md);border-radius:var(--radius);padding:9px 12px;font-size:13px;font-family:inherit;color:var(--text);transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.form-textarea{height:72px;resize:vertical}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border)}
+.cmodal-header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
+.cmodal-avatar{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
+.cmodal-title{font-size:18px;font-weight:700;flex:1}
+.cmodal-section{margin-bottom:1.25rem}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-hint);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.pw-wrap{position:relative}
+.pw-wrap .form-input{padding-right:40px}
+.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:14px;padding:2px 4px}
+.pw-toggle:hover{color:var(--text-sub)}
+.event-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.event-row:last-child{border-bottom:none}
+.event-row-date{font-size:12px;font-family:'DM Mono',monospace;color:var(--text-sub);min-width:90px;flex-shrink:0}
+
+/* Empty / icon */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-hint)}
+.empty-state-icon{font-size:40px;margin-bottom:12px}
+.empty-state-text{font-size:14px}
+.icon-btn{background:transparent;border:none;cursor:pointer;color:var(--text-hint);font-size:15px;padding:4px;border-radius:6px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{color:var(--red-text);background:var(--red-bg)}
+
+/* Event detail modal */
+.ev-detail-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:1.5rem}
+.ev-detail-type-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ev-detail-meta{flex:1}
+.ev-detail-company{font-size:18px;font-weight:700;margin-bottom:2px}
+.ev-detail-type{font-size:13px;color:var(--text-sub)}
+.ev-detail-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ev-detail-row:last-child{border-bottom:none}
+.ev-detail-label{font-size:11px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.4px;min-width:72px;padding-top:1px}
+.ev-detail-value{font-size:13px;color:var(--text);flex:1;word-break:break-all}
+.ev-detail-memo{font-size:13px;color:var(--text-sub);line-height:1.7;white-space:pre-wrap}
+
+/* Clickable reminder card */
+.reminder-card{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.reminder-card:hover{box-shadow:var(--shadow-md);border-color:var(--border-md)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:white;border-radius:var(--radius);padding:10px 18px;font-size:13px;font-weight:500;box-shadow:var(--shadow-md);transform:translateY(20px);opacity:0;transition:all .25s;z-index:2000;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+
+@media(max-width:768px){
+  .sidebar{width:100%;position:static;flex-direction:row;flex-wrap:wrap;padding:.75rem;border-right:none;border-bottom:1px solid var(--border)}
+  .logo{padding:0 .5rem 0;border-bottom:none;margin-bottom:0}
+  .sidebar-footer{display:none}
+  .main{margin-left:0;max-width:100%;padding:1rem}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .nav-item span{display:none}
+  .cal-cell{min-height:52px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo"><div class="logo-icon">就</div>就活マネージャー</div>
+    <nav style="display:flex;flex-direction:column;gap:4px">
+      <button class="nav-item active" onclick="switchView('calendar',this)">
+        <span class="nav-icon">📅</span><span>カレンダー</span>
+      </button>
+      <button class="nav-item" onclick="switchView('companies',this)">
+        <span class="nav-icon">🏢</span><span>企業一覧</span>
+      </button>
+      <button class="nav-item" onclick="switchView('reminders',this)">
+        <span class="nav-icon">🔔</span><span>今後の予定</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-stats" id="sidebar-stats"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title" id="page-title">カレンダー</h1>
+      <div class="header-actions" id="header-actions"></div>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <!-- Calendar view -->
+    <div class="view active" id="view-calendar">
+      <div class="cal-wrap">
+        <div class="cal-top">
+          <div class="cal-month-nav">
+            <button class="cal-nav-btn" id="btn-prev-month">‹</button>
+            <div class="cal-month-label" id="cal-month-label"></div>
+            <button class="cal-nav-btn" id="btn-next-month">›</button>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#2563EB"></div>面接</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#7C3AED"></div>説明会</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>締切</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#D97706"></div>筆記試験</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>その他</div>
+          </div>
+        </div>
+        <div class="cal-grid-header" id="cal-grid-header"></div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <!-- Companies view -->
+    <div class="view" id="view-companies">
+      <div class="company-grid" id="company-grid"></div>
+    </div>
+
+    <!-- Reminders view -->
+    <div class="view" id="view-reminders">
+      <div class="reminder-grid" id="reminder-grid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ===== 予定 Modal ===== -->
+<div class="modal-overlay" id="event-modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="event-modal-title">予定を追加</div>
+      <button class="modal-close" id="ev-close">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">企業名</label>
+      <input class="form-input" id="f-company" placeholder="例：株式会社○○" list="co-datalist">
+      <datalist id="co-datalist"></datalist>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label class="form-label">種別</label>
+        <select class="form-select" id="f-type">
+          <option value="interview">面接</option>
+          <option value="seminar">説明会</option>
+          <option value="deadline">締切・ES提出</option>
+          <option value="exam">筆記試験</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">選考ステータス</label>
+        <select class="form-select" id="f-status">
+          <option value="considering">検討中</option>
+          <option value="applied">応募済み</option>
+          <option value="exam">筆記試験</option>
+          <option value="interview">面接中</option>
+          <option value="offer">内定</option>
+          <option value="rejected">不合格</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2" style="margin-top:14px">
+      <div>
+        <label class="form-label">日付</label>
+        <input class="form-input" type="date" id="f-date">
+      </div>
+      <div>
+        <label class="form-label">時刻（任意）</label>
+        <input class="form-input" type="time" id="f-time">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:14px">
+      <label class="form-label">メモ・備考</label>
+      <textarea class="form-textarea" id="f-memo" placeholder="場所、準備事項など..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="ev-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="ev-save">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 企業追加 Modal ===== -->
+<div class="modal-overlay" id="addco-modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">企業を追加</div>
+      <button class="modal-close" id="addco-close">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">企業名 <span style="color:var(--red)">*</span></label>
+      <input class="form-input" id="ac-name" placeholder="例：株式会社○○">
+    </div>
+    <div class="form-row">
+      <label class="form-label">選考ステータス</label>
+      <select class="form-select" id="ac-status">
+        <option value="considering">検討中</option>
+        <option value="applied">応募済み</option>
+        <option value="exam">筆記試験</option>
+        <option value="interview">面接中</option>
+        <option value="offer">内定</option>
+        <option value="rejected">不合格</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">マイページURL（任意）</label>
+      <input class="form-input" id="ac-url" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">ログインID / メールアドレス（任意）</label>
+      <input class="form-input" id="ac-login" placeholder="例：taro@example.com">
+    </div>
+    <div class="form-row">
+      <label class="form-label">パスワード（任意）</label>
+      <div class="pw-wrap">
+        <input class="form-input" type="password" id="ac-password" placeholder="パスワードを入力">
+        <button class="pw-toggle" id="ac-pw-toggle">👁</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">企業メモ（任意）</label>
+      <textarea class="form-textarea" id="ac-note" placeholder="社風、福利厚生、OB訪問メモなど..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="addco-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="addco-save">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 企業詳細 Modal ===== -->
+<div class="modal-overlay" id="cdetail-modal-overlay">
+  <div class="cmodal">
+    <div class="cmodal-header">
+      <div class="cmodal-avatar" id="cm-avatar"></div>
+      <div class="cmodal-title" id="cm-title"></div>
+      <button class="modal-close" id="cm-close">✕</button>
+    </div>
+    <div class="cmodal-section">
+      <div class="section-title">選考状況</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <label class="form-label" style="margin:0;min-width:80px;white-space:nowrap">ステータス</label>
+        <select class="form-select" id="cm-status"></select>
+      </div>
+    </div>
+    <div class="cmodal-section">
+      <div class="section-title">マイページ情報</div>
+      <div class="form-row">
+        <label class="form-label">マイページURL</label>
+        <input class="form-input" id="cm-url" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <label class="form-label">ログインID / メールアドレス</label>
+        <input class="form-input" id="cm-login" placeholder="例：taro@example.com">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">パスワード</label>
+        <div class="pw-wrap">
+          <input class="form-input" type="password" id="cm-password" placeholder="パスワードを入力">
+          <button class="pw-toggle" id="cm-pw-toggle">👁</button>
+        </div>
+      </div>
+    </div>
+    <div class="cmodal-section">
+      <div class="section-title">企業メモ</div>
+      <textarea class="form-textarea" id="cm-note" style="height:88px" placeholder="社風、福利厚生、OB訪問メモなど..."></textarea>
+    </div>
+    <div class="cmodal-section">
+      <div class="section-title">登録済みの予定</div>
+      <div id="cm-events-list"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:1rem;padding-top:1.25rem;border-top:1px solid var(--border)">
+      <button class="btn btn-danger" id="cm-delete">企業を削除</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" id="cm-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="cm-save">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 予定詳細 Modal ===== -->
+<div class="modal-overlay" id="evdetail-modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="btn btn-outline" id="evd-back" style="display:none;padding:6px 12px;font-size:12px">← 一覧に戻る</button>
+      <div class="modal-title" id="evd-modal-title">予定の詳細</div>
+      <button class="modal-close" id="evd-close">✕</button>
+    </div>
+    <div class="ev-detail-header">
+      <div class="ev-detail-type-icon" id="evd-icon"></div>
+      <div class="ev-detail-meta">
+        <div class="ev-detail-company" id="evd-company"></div>
+        <div class="ev-detail-type" id="evd-type-badge"></div>
+      </div>
+    </div>
+    <div id="evd-rows"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="evd-edit" style="flex:1">✏️ 編集する</button>
+        <button class="btn btn-outline" id="evd-add-same-day" style="flex:1">＋ この日に追加</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-danger" id="evd-delete" style="flex:1">🗑 削除</button>
+        <button class="btn btn-outline" id="evd-close2" style="flex:1">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  /* ---- constants ---- */
+  const DAYS=['日','月','火','水','木','金','土'];
+  const MONTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const TYPE_LABELS={interview:'面接',seminar:'説明会',deadline:'締切',exam:'筆記試験',other:'その他'};
+  const STATUS_LABELS={considering:'検討中',applied:'応募済み',exam:'筆記試験',interview:'面接中',offer:'内定',rejected:'不合格'};
+  const AVATAR_COLORS=[
+    {bg:'#DBEAFE',c:'#1D4ED8'},{bg:'#D1FAE5',c:'#065F46'},{bg:'#FEF3C7',c:'#92400E'},
+    {bg:'#EDE9FE',c:'#5B21B6'},{bg:'#FCE7F3',c:'#9D174D'},{bg:'#FEE2E2',c:'#B91C1C'},
+  ];
+  const TYPE_STYLE={
+    interview:{bg:'#EFF4FF',c:'#1D4ED8'},seminar:{bg:'#F5F3FF',c:'#5B21B6'},
+    deadline:{bg:'#FEF2F2',c:'#B91C1C'},exam:{bg:'#FFFBEB',c:'#92400E'},other:{bg:'#ECFDF5',c:'#065F46'}
+  };
+
+  /* ---- state ---- */
+  let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
+  let currentView='calendar';
+  let editEventId=null, currentCo=null;
+
+  /* ---- storage ---- */
+  function loadJ(k,d){try{return JSON.parse(localStorage.getItem(k)||'null')||d;}catch{return d;}}
+  function saveJ(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+  let events=loadJ('shukatsu_events',[]);
+  let coInfo=loadJ('shukatsu_companies',{});
+
+  /* seed */
+  if(!events.length&&!Object.keys(coInfo).length){
+    const add=d=>{const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
+    events=[
+      {id:1,company:'○○商事',  type:'interview',date:add(5), time:'10:00',status:'interview', memo:'一次面接。スーツ着用、受付3F。'},
+      {id:2,company:'△△テック',type:'deadline', date:add(8), time:'',     status:'applied',   memo:'エントリーシート提出期限'},
+      {id:3,company:'□□銀行',  type:'exam',     date:add(11),time:'13:00',status:'exam',      memo:'会場：千代田区○○ビル5F'},
+      {id:4,company:'○○商事',  type:'interview',date:add(21),time:'14:00',status:'interview', memo:'二次面接（役員）'},
+      {id:5,company:'××食品',  type:'seminar',  date:add(3), time:'15:00',status:'considering',memo:'会社説明会（Zoom）'},
+    ];
+    saveJ('shukatsu_events',events);
+  }
+  let nextId=events.length?Math.max(...events.map(e=>e.id))+1:1;
+
+  /* ---- helpers ---- */
+  function todayStr(){return new Date().toISOString().slice(0,10);}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function allNames(){
+    const s=new Set();
+    events.forEach(e=>s.add(e.company));
+    Object.keys(coInfo).forEach(k=>s.add(k));
+    return[...s].sort();
+  }
+  function coStatus(n){
+    if(coInfo[n]?.status)return coInfo[n].status;
+    const ev=events.filter(e=>e.company===n);
+    return ev.length?ev[ev.length-1].status:'considering';
+  }
+
+  /* ---- render ---- */
+  function renderAll(){
+    renderStats(); renderSidebarStats(); updateHeaderActions(); updateDatalist();
+    if(currentView==='calendar')renderCalendar();
+    if(currentView==='companies')renderCompanies();
+    if(currentView==='reminders')renderReminders();
+  }
+
+  function renderStats(){
+    const names=allNames();
+    const upcoming=events.filter(e=>e.date>=todayStr()).length;
+    const offers=names.filter(n=>coStatus(n)==='offer').length;
+    const interviews=names.filter(n=>coStatus(n)==='interview').length;
+    document.getElementById('stats-grid').innerHTML=[
+      {label:'登録企業数',val:names.length,sub:'社'},
+      {label:'面接中',    val:interviews,  sub:'社'},
+      {label:'内定',      val:offers,      sub:'社'},
+      {label:'今後の予定',val:upcoming,    sub:'件'},
+    ].map(s=>`<div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-num">${s.val}<span style="font-size:14px;font-weight:400;color:var(--text-hint);font-family:inherit">${s.sub}</span></div>
+    </div>`).join('');
+  }
+
+  function renderSidebarStats(){
+    const names=allNames();
+    const upcoming=events.filter(e=>e.date>=todayStr()).length;
+    document.getElementById('sidebar-stats').innerHTML=[
+      ['登録企業',names.length+'社'],['今後の予定',upcoming+'件']
+    ].map(([l,v])=>`<div class="sidebar-stat"><span>${l}</span><span class="sidebar-stat-val">${v}</span></div>`).join('');
+  }
+
+  function updateHeaderActions(){
+    const el=document.getElementById('header-actions');
+    if(currentView==='companies'){
+      el.innerHTML=`<button class="btn btn-outline" id="btn-add-co">＋ 企業を追加</button>
+                    <button class="btn btn-primary" id="btn-add-ev">＋ 予定を追加</button>`;
+      document.getElementById('btn-add-co').addEventListener('click',openAddCoModal);
+      document.getElementById('btn-add-ev').addEventListener('click',()=>openEventModal());
+    } else {
+      el.innerHTML=`<button class="btn btn-primary" id="btn-add-ev">＋ 予定を追加</button>`;
+      document.getElementById('btn-add-ev').addEventListener('click',()=>openEventModal());
+    }
+  }
+
+  function updateDatalist(){
+    const dl=document.getElementById('co-datalist');
+    if(dl)dl.innerHTML=allNames().map(n=>`<option value="${esc(n)}">`).join('');
+  }
+
+  /* --- Calendar --- */
+  function renderCalendar(){
+    document.getElementById('cal-month-label').textContent=`${curYear}年 ${MONTHS[curMonth]}`;
+    document.getElementById('cal-grid-header').innerHTML=DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+    const first=new Date(curYear,curMonth,1).getDay();
+    const dim=new Date(curYear,curMonth+1,0).getDate();
+    const prev=new Date(curYear,curMonth,0).getDate();
+    const cells=[];
+    for(let i=0;i<first;i++)cells.push({d:prev-first+1+i,cur:false});
+    for(let i=1;i<=dim;i++)cells.push({d:i,cur:true});
+    while(cells.length<42)cells.push({d:cells.length-dim-first+1,cur:false});
+    const td=new Date();
+    const grid=document.getElementById('cal-grid');
+    grid.innerHTML=cells.map(c=>{
+      const isToday=c.cur&&c.d===td.getDate()&&curYear===td.getFullYear()&&curMonth===td.getMonth();
+      const ds=c.cur?`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`:'';
+      const dayEvs=c.cur?events.filter(e=>e.date===ds):[];
+      const dots=dayEvs.slice(0,3).map(e=>`<span class="cal-dot t-${e.type}">${TYPE_LABELS[e.type]}</span>`).join('');
+      return`<div class="cal-cell${c.cur?'':' other-month'}${isToday?' today':''}" data-ds="${ds}"><div class="cal-date">${c.d}</div>${dots}</div>`;
+    }).join('');
+    grid.querySelectorAll('.cal-cell[data-ds]').forEach(el=>{
+      const ds=el.dataset.ds;
+      if(!ds)return;
+      el.addEventListener('click',()=>{
+        const dayEvs=events.filter(e=>e.date===ds);
+        if(dayEvs.length===1){
+          openEvDetail(dayEvs[0].id);
+        } else if(dayEvs.length>1){
+          openDayList(ds,dayEvs);
+        } else {
+          openEventModal(ds);
+        }
+      });
+    });
+  }
+
+  /* --- Companies --- */
+  function renderCompanies(){
+    const names=allNames();
+    if(!names.length){
+      document.getElementById('company-grid').innerHTML=`<div class="empty-state"><div class="empty-state-icon">🏢</div><div class="empty-state-text">まだ企業が登録されていません。<br>「企業を追加」ボタンから登録できます。</div></div>`;
+      return;
+    }
+    document.getElementById('company-grid').innerHTML=names.map((name,i)=>{
+      const clr=AVATAR_COLORS[i%AVATAR_COLORS.length];
+      const status=coStatus(name);
+      const upcoming=events.filter(e=>e.company===name&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
+      const next=upcoming[0];
+      const sub=next?`次：${next.date} ${TYPE_LABELS[next.type]}${next.time?' '+next.time:''}`:'今後の予定なし';
+      const info=coInfo[name]||{};
+      const hasInfo=info.url||info.login||info.note;
+      return`<div class="company-card" data-name="${esc(name)}" data-idx="${i}">
+        <div class="company-avatar" style="background:${clr.bg};color:${clr.c}">${esc(name.slice(0,2))}</div>
+        <div class="company-info">
+          <div class="company-name">${esc(name)}</div>
+          <div class="company-meta">${esc(sub)}</div>
+        </div>
+        <div class="company-actions">
+          ${hasInfo?'<span style="font-size:12px;color:var(--text-hint)" title="マイページ情報あり">🔑</span>':''}
+          <span class="badge s-${status}">${STATUS_LABELS[status]}</span>
+          <span style="font-size:13px;color:var(--text-hint);margin-left:2px">›</span>
+        </div>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.company-card').forEach(card=>{
+      card.addEventListener('click',()=>openCoDetail(card.dataset.name,parseInt(card.dataset.idx)));
+    });
+  }
+
+  /* --- Reminders --- */
+  function renderReminders(){
+    const upcoming=events.filter(e=>e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date));
+    if(!upcoming.length){
+      document.getElementById('reminder-grid').innerHTML=`<div class="empty-state"><div class="empty-state-icon">🔔</div><div class="empty-state-text">今後の予定はありません。</div></div>`;
+      return;
+    }
+    document.getElementById('reminder-grid').innerHTML=upcoming.map(e=>{
+      const[,m,d]=e.date.split('-');
+      const diff=Math.ceil((new Date(e.date)-new Date(todayStr()))/86400000);
+      const diffText=diff===0?'今日':diff===1?'明日':`${diff}日後`;
+      const diffColor=diff<=3?'var(--red)':diff<=7?'var(--amber)':'var(--text-hint)';
+      const st=TYPE_STYLE[e.type]||TYPE_STYLE.other;
+      return`<div class="reminder-card" data-evid="${e.id}">
+        <div class="reminder-date-box" style="background:${st.bg};color:${st.c}">
+          <div class="r-month">${MONTHS[parseInt(m)-1]}</div>
+          <div class="r-day">${parseInt(d)}</div>
+        </div>
+        <div class="reminder-body">
+          <div class="reminder-title">${TYPE_LABELS[e.type]}${e.time?' · '+e.time:''}</div>
+          <div class="reminder-company">${esc(e.company)} · <span class="badge s-${e.status}" style="font-size:10px;padding:1px 7px">${STATUS_LABELS[e.status]}</span></div>
+          ${e.memo?`<div class="reminder-memo">${esc(e.memo)}</div>`:''}
+        </div>
+        <div class="reminder-actions">
+          <span class="reminder-days-left" style="color:${diffColor}">${diffText}</span>
+          <button class="icon-btn" data-edit="${e.id}" title="編集">✏️</button>
+          <button class="icon-btn" data-del="${e.id}" title="削除">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.reminder-card[data-evid]').forEach(card=>{
+      card.addEventListener('click',()=>openEvDetail(parseInt(card.dataset.evid)));
+    });
+    document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();openEventModal(null,parseInt(b.dataset.edit));}));
+    document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();deleteEvent(parseInt(b.dataset.del));}));
+  }
+
+  /* ---- Event modal ---- */
+  function openEventModal(dateStr, editId){
+    editEventId=editId||null;
+    document.getElementById('event-modal-title').textContent=editId?'予定を編集':'予定を追加';
+    if(editId){
+      const ev=events.find(e=>e.id===editId);
+      if(!ev)return;
+      document.getElementById('f-company').value=ev.company;
+      document.getElementById('f-type').value=ev.type;
+      document.getElementById('f-date').value=ev.date;
+      document.getElementById('f-time').value=ev.time||'';
+      document.getElementById('f-status').value=ev.status;
+      document.getElementById('f-memo').value=ev.memo||'';
+    } else {
+      document.getElementById('f-company').value='';
+      document.getElementById('f-type').value='interview';
+      document.getElementById('f-date').value=dateStr||todayStr();
+      document.getElementById('f-time').value='';
+      document.getElementById('f-status').value='considering';
+      document.getElementById('f-memo').value='';
+    }
+    document.getElementById('event-modal-overlay').classList.add('open');
+  }
+  function closeEventModal(){document.getElementById('event-modal-overlay').classList.remove('open');}
+
+  function saveEvent(){
+    const company=document.getElementById('f-company').value.trim();
+    const date=document.getElementById('f-date').value;
+    if(!company){alert('企業名を入力してください');return;}
+    if(!date){alert('日付を入力してください');return;}
+    const ev={
+      id:editEventId||nextId++,company,
+      type:document.getElementById('f-type').value,
+      date,time:document.getElementById('f-time').value,
+      status:document.getElementById('f-status').value,
+      memo:document.getElementById('f-memo').value.trim(),
+    };
+    if(editEventId){const i=events.findIndex(e=>e.id===editEventId);if(i>=0)events[i]=ev;}
+    else events.push(ev);
+    saveJ('shukatsu_events',events);
+    closeEventModal();
+    showToast(editEventId?'更新しました':'追加しました');
+    renderAll();
+  }
+
+  function deleteEvent(id){
+    if(!confirm('この予定を削除しますか？'))return;
+    events=events.filter(e=>e.id!==id);
+    saveJ('shukatsu_events',events);
+    showToast('削除しました');
+    renderAll();
+  }
+
+  /* ---- Event detail modal ---- */
+  const TYPE_ICONS={interview:'🤝',seminar:'📢',deadline:'📋',exam:'📝',other:'📌'};
+
+  function openEvDetail(id, fromDayList){
+    // reset button states
+    document.getElementById('evd-delete').style.display='';
+    document.getElementById('evd-add-same-day').style.display='';
+    document.getElementById('evd-edit').textContent='✏️ 編集する';
+    document.getElementById('evd-modal-title').textContent='予定の詳細';
+    // 戻るボタン制御
+    const backBtn=document.getElementById('evd-back');
+    if(fromDayList){
+      backBtn.style.display='';
+      backBtn.onclick=()=>{ closeEvDetail(); openDayList(fromDayList, events.filter(e=>e.date===fromDayList)); };
+    } else {
+      backBtn.style.display='none';
+    }
+    const ev=events.find(e=>e.id===id);
+    if(!ev)return;
+    const st=TYPE_STYLE[ev.type]||TYPE_STYLE.other;
+    const icon=document.getElementById('evd-icon');
+    icon.textContent=TYPE_ICONS[ev.type]||'📌';
+    icon.style.background=st.bg;
+    icon.style.color=st.c;
+    document.getElementById('evd-company').textContent=ev.company;
+    document.getElementById('evd-type-badge').innerHTML=
+      `<span class="cal-dot t-${ev.type}" style="display:inline;padding:2px 8px;font-size:11px;border-radius:5px">${TYPE_LABELS[ev.type]}</span>
+       <span class="badge s-${ev.status}" style="margin-left:6px;font-size:11px">${STATUS_LABELS[ev.status]}</span>`;
+    const diff=Math.ceil((new Date(ev.date)-new Date(todayStr()))/86400000);
+    const diffText=diff<0?`${Math.abs(diff)}日前`:diff===0?'今日':diff===1?'明日':`${diff}日後`;
+    const diffColor=diff<0?'var(--text-hint)':diff<=3?'var(--red)':diff<=7?'var(--amber)':'var(--green)';
+    const rows=[
+      {label:'日付',value:`${ev.date}${ev.time?' '+ev.time:''} <span style="font-size:11px;font-weight:700;color:${diffColor};margin-left:6px">${diffText}</span>`},
+      {label:'ステータス',value:STATUS_LABELS[ev.status]||ev.status},
+      ev.memo?{label:'メモ',value:`<span class="ev-detail-memo">${esc(ev.memo)}</span>`}:null,
+    ].filter(Boolean);
+    document.getElementById('evd-rows').innerHTML=rows.map(r=>`
+      <div class="ev-detail-row">
+        <span class="ev-detail-label">${r.label}</span>
+        <span class="ev-detail-value">${r.value}</span>
+      </div>`).join('');
+    // wire delete/edit inside modal using current id
+    document.getElementById('evd-delete').onclick=()=>{
+      if(!confirm('この予定を削除しますか？'))return;
+      events=events.filter(e=>e.id!==id);
+      saveJ('shukatsu_events',events);
+      closeEvDetail();
+      showToast('削除しました');
+      renderAll();
+    };
+    document.getElementById('evd-edit').onclick=()=>{
+      closeEvDetail();
+      openEventModal(null,id);
+    };
+    document.getElementById('evd-add-same-day').onclick=()=>{
+      closeEvDetail();
+      openEventModal(ev.date);
+    };
+    document.getElementById('evdetail-modal-overlay').classList.add('open');
+  }
+  function closeEvDetail(){document.getElementById('evdetail-modal-overlay').classList.remove('open');}
+
+  /* day-list: when calendar cell has multiple events, show a mini list */
+  function openDayList(ds,dayEvs){
+    const [y,m,d]=ds.split('-');
+    // ヘッダーアイコンエリアを日付表示に流用
+    document.getElementById('evd-icon').textContent='📅';
+    document.getElementById('evd-icon').style.background='var(--surface2)';
+    document.getElementById('evd-icon').style.color='var(--text-sub)';
+    document.getElementById('evd-company').textContent=`${parseInt(m)}月${parseInt(d)}日`;
+    document.getElementById('evd-type-badge').textContent=`${dayEvs.length}件の予定`;
+    document.getElementById('evd-modal-title').textContent='予定一覧';
+    document.getElementById('evd-back').style.display='none';
+    document.getElementById('evd-rows').innerHTML=dayEvs.map(e=>{
+      const st=TYPE_STYLE[e.type]||TYPE_STYLE.other;
+      return`<div class="ev-detail-row" style="cursor:pointer" data-dayev="${e.id}">
+        <span style="width:32px;height:32px;border-radius:8px;background:${st.bg};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${TYPE_ICONS[e.type]||'📌'}</span>
+        <span style="flex:1;min-width:0">
+          <span style="font-size:13px;font-weight:600;display:block">${esc(e.company)}</span>
+          <span style="font-size:11px;color:var(--text-sub)">${TYPE_LABELS[e.type]}${e.time?' · '+e.time:''}</span>
+        </span>
+        <span style="font-size:12px;color:var(--text-hint)">›</span>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('[data-dayev]').forEach(row=>{
+      row.addEventListener('click',()=>{
+        closeEvDetail();
+        openEvDetail(parseInt(row.dataset.dayev), ds);
+      });
+    });
+    document.getElementById('evd-delete').style.display='none';
+    document.getElementById('evd-add-same-day').style.display='none';
+    document.getElementById('evd-edit').textContent='＋ この日に追加';
+    document.getElementById('evd-edit').style.flex='1';
+    document.getElementById('evd-edit').onclick=()=>{closeEvDetail();openEventModal(ds);};
+    document.getElementById('evdetail-modal-overlay').classList.add('open');
+  }
+
+  /* ---- Add-company modal ---- */
+  function openAddCoModal(){
+    ['ac-name','ac-url','ac-login','ac-password','ac-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ac-status').value='considering';
+    document.getElementById('addco-modal-overlay').classList.add('open');
+  }
+  function closeAddCoModal(){document.getElementById('addco-modal-overlay').classList.remove('open');}
+
+  function saveNewCompany(){
+    const name=document.getElementById('ac-name').value.trim();
+    if(!name){alert('企業名を入力してください');return;}
+    coInfo[name]={
+      status:document.getElementById('ac-status').value,
+      url:document.getElementById('ac-url').value.trim(),
+      login:document.getElementById('ac-login').value.trim(),
+      password:document.getElementById('ac-password').value,
+      note:document.getElementById('ac-note').value.trim(),
+    };
+    saveJ('shukatsu_companies',coInfo);
+    closeAddCoModal();
+    showToast(`「${name}」を追加しました`);
+    renderAll();
+  }
+
+  /* ---- Company detail modal ---- */
+  function openCoDetail(name,colorIdx){
+    currentCo=name;
+    const info=coInfo[name]||{};
+    const clr=AVATAR_COLORS[colorIdx%AVATAR_COLORS.length];
+    const av=document.getElementById('cm-avatar');
+    av.textContent=name.slice(0,2);
+    av.style.background=clr.bg;
+    av.style.color=clr.c;
+    document.getElementById('cm-title').textContent=name;
+    // populate status select
+    const sel=document.getElementById('cm-status');
+    sel.innerHTML=Object.entries(STATUS_LABELS).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+    sel.value=coStatus(name);
+    document.getElementById('cm-url').value=info.url||'';
+    document.getElementById('cm-login').value=info.login||'';
+    document.getElementById('cm-password').value=info.password||'';
+    document.getElementById('cm-note').value=info.note||'';
+    const evs=events.filter(e=>e.company===name).sort((a,b)=>a.date.localeCompare(b.date));
+    document.getElementById('cm-events-list').innerHTML=evs.length
+      ?evs.map(e=>`<div class="event-row">
+          <span class="event-row-date">${e.date}${e.time?' '+e.time:''}</span>
+          <span style="flex:1;font-size:13px"><span class="cal-dot t-${e.type}" style="display:inline;padding:1px 6px;font-size:10px">${TYPE_LABELS[e.type]}</span> ${esc(e.memo||'')}</span>
+          <button class="icon-btn cm-ev-detail-btn" data-evid="${e.id}" title="詳細" style="font-size:13px;flex-shrink:0">🔍</button>
+        </div>`).join('')
+      :'<div style="color:var(--text-hint);font-size:13px;padding:6px 0">予定なし</div>';
+    document.querySelectorAll('.cm-ev-detail-btn').forEach(b=>{
+      b.addEventListener('click',e=>{
+        e.stopPropagation();
+        closeCoDetail();
+        openEvDetail(parseInt(b.dataset.evid));
+      });
+    });
+    document.getElementById('cdetail-modal-overlay').classList.add('open');
+  }
+  function closeCoDetail(){document.getElementById('cdetail-modal-overlay').classList.remove('open');currentCo=null;}
+
+  function saveCoDetail(){
+    if(!currentCo)return;
+    const newStatus=document.getElementById('cm-status').value;
+    coInfo[currentCo]={
+      status:newStatus,
+      url:document.getElementById('cm-url').value.trim(),
+      login:document.getElementById('cm-login').value.trim(),
+      password:document.getElementById('cm-password').value,
+      note:document.getElementById('cm-note').value.trim(),
+    };
+    saveJ('shukatsu_companies',coInfo);
+    events.forEach(e=>{if(e.company===currentCo)e.status=newStatus;});
+    saveJ('shukatsu_events',events);
+    closeCoDetail();
+    showToast('企業情報を保存しました');
+    renderAll();
+  }
+
+  function deleteCompany(){
+    if(!currentCo)return;
+    if(!confirm(`「${currentCo}」を削除しますか？\n関連する予定も全て削除されます。`))return;
+    delete coInfo[currentCo];
+    events=events.filter(e=>e.company!==currentCo);
+    saveJ('shukatsu_companies',coInfo);
+    saveJ('shukatsu_events',events);
+    closeCoDetail();
+    showToast('削除しました');
+    renderAll();
+  }
+
+  /* ---- View switch ---- */
+  function switchView(view,btn){
+    currentView=view;
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+view).classList.add('active');
+    const titles={calendar:'カレンダー',companies:'企業一覧',reminders:'今後の予定'};
+    document.getElementById('page-title').textContent=titles[view];
+    renderAll();
+  }
+  window.switchView=switchView;   /* expose for inline onclick on nav buttons */
+
+  /* ---- Toast ---- */
+  function showToast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg;t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),2200);
+  }
+
+  /* ---- Wire up all buttons ---- */
+  /* event detail modal */
+  document.getElementById('evd-close').addEventListener('click',closeEvDetail);
+  document.getElementById('evd-close2').addEventListener('click',closeEvDetail);
+  document.getElementById('evdetail-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEvDetail();});
+  /* event modal */
+  document.getElementById('ev-close').addEventListener('click',closeEventModal);
+  document.getElementById('ev-cancel').addEventListener('click',closeEventModal);
+  document.getElementById('ev-save').addEventListener('click',saveEvent);
+  document.getElementById('event-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEventModal();});
+  /* add-company modal */
+  document.getElementById('addco-close').addEventListener('click',closeAddCoModal);
+  document.getElementById('addco-cancel').addEventListener('click',closeAddCoModal);
+  document.getElementById('addco-save').addEventListener('click',saveNewCompany);
+  document.getElementById('addco-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAddCoModal();});
+  document.getElementById('ac-pw-toggle').addEventListener('click',()=>{
+    const i=document.getElementById('ac-password');i.type=i.type==='password'?'text':'password';
+  });
+  /* company detail modal */
+  document.getElementById('cm-close').addEventListener('click',closeCoDetail);
+  document.getElementById('cm-cancel').addEventListener('click',closeCoDetail);
+  document.getElementById('cm-save').addEventListener('click',saveCoDetail);
+  document.getElementById('cm-delete').addEventListener('click',deleteCompany);
+  document.getElementById('cdetail-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeCoDetail();});
+  document.getElementById('cm-pw-toggle').addEventListener('click',()=>{
+    const i=document.getElementById('cm-password');i.type=i.type==='password'?'text':'password';
+  });
+  /* calendar nav */
+  document.getElementById('btn-prev-month').addEventListener('click',()=>{
+    curMonth--;if(curMonth<0){curMonth=11;curYear--;}renderCalendar();
+  });
+  document.getElementById('btn-next-month').addEventListener('click',()=>{
+    curMonth++;if(curMonth>11){curMonth=0;curYear++;}renderCalendar();
+  });
+
+  /* ---- init ---- */
+  renderAll();
+})();
+</script>
+</body>
+</html>
