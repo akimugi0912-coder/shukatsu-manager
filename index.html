@@ -661,7 +661,8 @@ onAuthStateChanged(auth, (user) => {
   function coStatus(n){if(coInfo[n]&&coInfo[n].status)return coInfo[n].status;const ev=events.filter(e=>e.company===n);return ev.length?ev[ev.length-1].status:'considering';}
 
   /* カスタム確認ダイアログ */
-  function showConfirm({icon='🗑', title='削除しますか？', msg='この操作は取り消せません。', okLabel='削除する', okClass='btn-danger', onOk}){
+  function showConfirm(opts){
+    var icon=opts.icon||'🗑', title=opts.title||'削除しますか？', msg=opts.msg||'この操作は取り消せません。', okLabel=opts.okLabel||'削除する', okClass=opts.okClass||'btn-danger', onOk=opts.onOk;
     document.getElementById('confirm-icon').textContent=icon;
     document.getElementById('confirm-title').textContent=title;
     document.getElementById('confirm-msg').textContent=msg;
