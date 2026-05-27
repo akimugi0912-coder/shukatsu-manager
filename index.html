@@ -230,14 +230,19 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <button class="nav-item" onclick="switchView('companies',this)"><span class="nav-icon">🏢</span><span>企業一覧</span></button>
       <button class="nav-item" onclick="switchView('reminders',this)"><span class="nav-icon">🔔</span><span>今後の予定</span></button>
     </nav>
-    <div class="sidebar-footer"><div class="sidebar-stats" id="sidebar-stats"></div></div>
+    <div class="sidebar-footer">
+      <div class="sidebar-stats" id="sidebar-stats"></div>
+      <div style="margin-top:8px;font-size:11px" id="sync-indicator-pc">⏳ 接続中...</div>
+    </div>
   </aside>
 
-  <!-- Mobile top bar -->
   <div class="mobile-topbar">
     <button class="hamburger" id="hamburger-btn">☰</button>
     <div class="mobile-logo"><div class="mobile-logo-icon">就</div>就活マネージャー</div>
-    <button class="mobile-add-btn" id="mobile-add-btn">＋ 追加</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="sync-indicator" style="font-size:10px;color:var(--text-hint)">⏳ 接続中</span>
+      <button class="mobile-add-btn" id="mobile-add-btn">＋ 追加</button>
+    </div>
   </div>
 
   <!-- Drawer -->
@@ -454,6 +459,48 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
 <div class="toast" id="toast"></div>
 
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
+import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD90Pqy9VNVeh3_C3E0uCKrd4O6_vYZU-o",
+  authDomain: "shukatsu-manager-2d153.firebaseapp.com",
+  projectId: "shukatsu-manager-2d153",
+  storageBucket: "shukatsu-manager-2d153.firebasestorage.app",
+  messagingSenderId: "136667481996",
+  appId: "1:136667481996:web:c4ececbe5b9c92291338a9",
+  measurementId: "G-BHX8Y9HSFC"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const DATA_DOC = doc(db, 'shukatsu', 'data');
+
+window._fbSave = async function(eventsData, coInfoData) {
+  try {
+    await setDoc(DATA_DOC, { events: eventsData, coInfo: coInfoData });
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    // fallback to localStorage
+    localStorage.setItem('shukatsu_events', JSON.stringify(eventsData));
+    localStorage.setItem('shukatsu_companies', JSON.stringify(coInfoData));
+  }
+};
+
+window._fbListen = function(callback) {
+  onSnapshot(DATA_DOC, (snap) => {
+    if (snap.exists()) {
+      const d = snap.data();
+      callback(d.events || [], d.coInfo || {});
+    } else {
+      callback(null, null);
+    }
+  });
+};
+</script>
+
 <script>
 (function(){
   const DAYS=['日','月','火','水','木','金','土'];
@@ -474,24 +521,57 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   let curYear=new Date().getFullYear(),curMonth=new Date().getMonth();
   let currentView='calendar';
   let editEventId=null,currentCo=null;
+  let fbReady=false;
 
+  // localStorage fallback
   function loadJ(k,d){try{return JSON.parse(localStorage.getItem(k)||'null')||d;}catch{return d;}}
-  function saveJ(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+  async function saveJ(){
+    if(window._fbSave){
+      await window._fbSave(events, coInfo);
+    } else {
+      localStorage.setItem('shukatsu_events', JSON.stringify(events));
+      localStorage.setItem('shukatsu_companies', JSON.stringify(coInfo));
+    }
+  }
 
   let events=loadJ('shukatsu_events',[]);
   let coInfo=loadJ('shukatsu_companies',{});
 
-  if(!events.length&&!Object.keys(coInfo).length){
-    const add=d=>{const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
-    events=[
-      {id:1,company:'○○商事',type:'interview',date:add(5),time:'10:00',status:'interview',memo:'一次面接。スーツ着用、受付3F。'},
-      {id:2,company:'△△テック',type:'deadline',date:add(8),time:'',status:'applied',memo:'エントリーシート提出期限'},
-      {id:3,company:'□□銀行',type:'exam',date:add(11),time:'13:00',status:'exam',memo:'会場：千代田区○○ビル5F'},
-      {id:4,company:'○○商事',type:'interview',date:add(21),time:'14:00',status:'interview',memo:'二次面接（役員）'},
-      {id:5,company:'××食品',type:'seminar',date:add(3),time:'15:00',status:'considering',memo:'会社説明会（Zoom）'},
-    ];
-    saveJ('shukatsu_events',events);
+  // Firebase リアルタイム同期開始
+  function startSync(){
+    if(!window._fbListen) return setTimeout(startSync, 500);
+    window._fbListen((fbEvents, fbCoInfo) => {
+      if(fbEvents === null){
+        // 初回：ローカルデータをFirebaseに保存
+        if(events.length === 0 && Object.keys(coInfo).length === 0){
+          const add=d=>{const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
+          events=[
+            {id:1,company:'○○商事',type:'interview',date:add(5),time:'10:00',status:'interview',memo:'一次面接。スーツ着用、受付3F。'},
+            {id:2,company:'△△テック',type:'deadline',date:add(8),time:'',status:'applied',memo:'エントリーシート提出期限'},
+            {id:3,company:'□□銀行',type:'exam',date:add(11),time:'13:00',status:'exam',memo:'会場：千代田区○○ビル5F'},
+            {id:4,company:'○○商事',type:'interview',date:add(21),time:'14:00',status:'interview',memo:'二次面接（役員）'},
+            {id:5,company:'××食品',type:'seminar',date:add(3),time:'15:00',status:'considering',memo:'会社説明会（Zoom）'},
+          ];
+        }
+        saveJ();
+      } else {
+        events = fbEvents;
+        coInfo = fbCoInfo;
+        nextId = events.length ? Math.max(...events.map(e=>e.id))+1 : 1;
+        renderAll();
+        if(!fbReady){
+          fbReady=true;
+          const si=document.getElementById('sync-indicator');
+          const sip=document.getElementById('sync-indicator-pc');
+          if(si){si.textContent='☁️ 同期済';si.style.color='var(--green)';}
+          if(sip){sip.textContent='☁️ クラウド同期済';sip.style.color='var(--green)';}
+        }
+      }
+    });
   }
+  setTimeout(startSync, 800);
+
   let nextId=events.length?Math.max(...events.map(e=>e.id))+1:1;
 
   function todayStr(){return new Date().toISOString().slice(0,10);}
@@ -713,7 +793,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   }
   function closeEventModal(){document.getElementById('event-modal-overlay').classList.remove('open');}
 
-  function saveEvent(){
+  async function saveEvent(){
     const company=document.getElementById('f-company').value.trim();
     const date=document.getElementById('f-date').value;
     if(!company){alert('企業名を入力してください');return;}
@@ -721,14 +801,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     const ev={id:editEventId||nextId++,company,type:document.getElementById('f-type').value,date,time:document.getElementById('f-time').value,status:document.getElementById('f-status').value,memo:document.getElementById('f-memo').value.trim()};
     if(editEventId){const i=events.findIndex(e=>e.id===editEventId);if(i>=0)events[i]=ev;}
     else events.push(ev);
-    saveJ('shukatsu_events',events);
+    await saveJ();
     closeEventModal();showToast(editEventId?'更新しました':'追加しました');renderAll();
   }
 
-  function deleteEvent(id){
+  async function deleteEvent(id){
     if(!confirm('この予定を削除しますか？'))return;
     events=events.filter(e=>e.id!==id);
-    saveJ('shukatsu_events',events);showToast('削除しました');renderAll();
+    await saveJ();showToast('削除しました');renderAll();
   }
 
   /* Event detail */
@@ -763,10 +843,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       ev.memo?{label:'メモ',value:`<span class="ev-detail-memo">${esc(ev.memo)}</span>`}:null,
     ].filter(Boolean);
     document.getElementById('evd-rows').innerHTML=rows.map(r=>`<div class="ev-detail-row"><span class="ev-detail-label">${r.label}</span><span class="ev-detail-value">${r.value}</span></div>`).join('');
-    document.getElementById('evd-delete').onclick=()=>{
+    document.getElementById('evd-delete').onclick=async()=>{
       if(!confirm('この予定を削除しますか？'))return;
       events=events.filter(e=>e.id!==id);
-      saveJ('shukatsu_events',events);closeEvDetail();showToast('削除しました');renderAll();
+      await saveJ();closeEvDetail();showToast('削除しました');renderAll();
     };
     document.getElementById('evd-edit').onclick=()=>{closeEvDetail();openEventModal(null,id);};
     document.getElementById('evd-add-same-day').onclick=()=>{closeEvDetail();openEventModal(ev.date);};
@@ -813,11 +893,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   }
   function closeAddCoModal(){document.getElementById('addco-modal-overlay').classList.remove('open');}
 
-  function saveNewCompany(){
+  async function saveNewCompany(){
     const name=document.getElementById('ac-name').value.trim();
     if(!name){alert('企業名を入力してください');return;}
     coInfo[name]={status:document.getElementById('ac-status').value,url:document.getElementById('ac-url').value.trim(),login:document.getElementById('ac-login').value.trim(),password:document.getElementById('ac-password').value,note:document.getElementById('ac-note').value.trim()};
-    saveJ('shukatsu_companies',coInfo);closeAddCoModal();showToast(`「${name}」を追加しました`);renderAll();
+    await saveJ();closeAddCoModal();showToast(`「${name}」を追加しました`);renderAll();
   }
 
   /* Company detail */
@@ -850,22 +930,21 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   }
   function closeCoDetail(){document.getElementById('cdetail-modal-overlay').classList.remove('open');currentCo=null;}
 
-  function saveCoDetail(){
+  async function saveCoDetail(){
     if(!currentCo)return;
     const newStatus=document.getElementById('cm-status').value;
     coInfo[currentCo]={status:newStatus,url:document.getElementById('cm-url').value.trim(),login:document.getElementById('cm-login').value.trim(),password:document.getElementById('cm-password').value,note:document.getElementById('cm-note').value.trim()};
-    saveJ('shukatsu_companies',coInfo);
     events.forEach(e=>{if(e.company===currentCo)e.status=newStatus;});
-    saveJ('shukatsu_events',events);
+    await saveJ();
     closeCoDetail();showToast('企業情報を保存しました');renderAll();
   }
 
-  function deleteCompany(){
+  async function deleteCompany(){
     if(!currentCo)return;
     if(!confirm(`「${currentCo}」を削除しますか？\n関連する予定も全て削除されます。`))return;
     delete coInfo[currentCo];
     events=events.filter(e=>e.company!==currentCo);
-    saveJ('shukatsu_companies',coInfo);saveJ('shukatsu_events',events);
+    await saveJ();
     closeCoDetail();showToast('削除しました');renderAll();
   }
 
