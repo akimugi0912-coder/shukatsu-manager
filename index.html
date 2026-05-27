@@ -233,6 +233,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="sidebar-footer">
       <div class="sidebar-stats" id="sidebar-stats"></div>
       <div style="margin-top:8px;font-size:11px" id="sync-indicator-pc">⏳ 接続中...</div>
+      <button onclick="window._fbLogout&&window._fbLogout()" style="margin-top:10px;width:100%;padding:7px;background:var(--surface2);border:1px solid var(--border-md);border-radius:var(--radius);font-size:12px;cursor:pointer;color:var(--text-sub);font-family:inherit">ログアウト</button>
     </div>
   </aside>
 
@@ -258,6 +259,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="drawer-divider"></div>
     <button class="drawer-nav-item" onclick="closeDrawer();setTimeout(openAddCoModal,100)"><span style="font-size:18px">🏢</span><span>企業を追加</span></button>
     <button class="drawer-nav-item" onclick="closeDrawer();setTimeout(()=>openEventModal(),100)"><span style="font-size:18px">📝</span><span>予定を追加</span></button>
+    <button class="drawer-nav-item" onclick="closeDrawer();setTimeout(()=>window._fbLogout&&window._fbLogout(),100)" style="color:var(--red-text)"><span style="font-size:18px">🚪</span><span>ログアウト</span></button>
     <div class="drawer-footer-stats" id="drawer-stats"></div>
   </div>
 
@@ -457,12 +459,27 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
 </div>
 
+<!-- ログイン画面 -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px">
+  <div style="text-align:center">
+    <div style="width:64px;height:64px;background:var(--text);border-radius:18px;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:700;margin:0 auto 16px">就</div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:-.5px">就活マネージャー</div>
+    <div style="font-size:13px;color:var(--text-sub);margin-top:6px">カレンダー・企業管理・クラウド同期</div>
+  </div>
+  <button id="google-login-btn" style="display:flex;align-items:center;gap:12px;padding:12px 24px;background:white;border:1px solid var(--border-md);border-radius:var(--radius-lg);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;box-shadow:var(--shadow-md);transition:all .15s">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20">
+    Googleアカウントでログイン
+  </button>
+  <div style="font-size:11px;color:var(--text-hint);text-align:center;max-width:260px">ログインするとデータがクラウドに保存され<br>複数端末で同期されます</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD90Pqy9VNVeh3_C3E0uCKrd4O6_vYZU-o",
@@ -476,29 +493,59 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const DATA_DOC = doc(db, 'shukatsu', 'data');
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-window._fbSave = async function(eventsData, coInfoData) {
+let currentUid = null;
+let unsubscribe = null;
+
+// Googleログイン
+window._fbLogin = async function() {
   try {
-    await setDoc(DATA_DOC, { events: eventsData, coInfo: coInfoData });
+    await signInWithPopup(auth, provider);
   } catch(e) {
-    console.error('Firebase save error:', e);
-    // fallback to localStorage
-    localStorage.setItem('shukatsu_events', JSON.stringify(eventsData));
-    localStorage.setItem('shukatsu_companies', JSON.stringify(coInfoData));
+    console.error('Login error:', e);
+    alert('ログインに失敗しました。もう一度お試しください。');
   }
 };
 
-window._fbListen = function(callback) {
-  onSnapshot(DATA_DOC, (snap) => {
-    if (snap.exists()) {
-      const d = snap.data();
-      callback(d.events || [], d.coInfo || {});
-    } else {
-      callback(null, null);
-    }
-  });
+// ログアウト
+window._fbLogout = async function() {
+  if(unsubscribe) unsubscribe();
+  await signOut(auth);
+  currentUid = null;
+  window._onLogout && window._onLogout();
 };
+
+// データ保存（ユーザーごと）
+window._fbSave = async function(eventsData, coInfoData) {
+  if(!currentUid) return;
+  try {
+    await setDoc(doc(db, 'users', currentUid), { events: eventsData, coInfo: coInfoData });
+  } catch(e) {
+    console.error('Firebase save error:', e);
+  }
+};
+
+// 認証状態の監視
+onAuthStateChanged(auth, (user) => {
+  if(user) {
+    currentUid = user.uid;
+    // ユーザーごとのデータを監視
+    if(unsubscribe) unsubscribe();
+    unsubscribe = onSnapshot(doc(db, 'users', currentUid), (snap) => {
+      if(snap.exists()) {
+        const d = snap.data();
+        window._onDataUpdate && window._onDataUpdate(d.events || [], d.coInfo || {});
+      } else {
+        window._onDataUpdate && window._onDataUpdate(null, null);
+      }
+    });
+    window._onLogin && window._onLogin(user);
+  } else {
+    window._onLogout && window._onLogout();
+  }
+});
 </script>
 
 <script>
@@ -538,39 +585,60 @@ window._fbListen = function(callback) {
   let events=loadJ('shukatsu_events',[]);
   let coInfo=loadJ('shukatsu_companies',{});
 
-  // Firebase リアルタイム同期開始
-  function startSync(){
-    if(!window._fbListen) return setTimeout(startSync, 500);
-    window._fbListen((fbEvents, fbCoInfo) => {
-      if(fbEvents === null){
-        // 初回：ローカルデータをFirebaseに保存
-        if(events.length === 0 && Object.keys(coInfo).length === 0){
-          const add=d=>{const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
-          events=[
-            {id:1,company:'○○商事',type:'interview',date:add(5),time:'10:00',status:'interview',memo:'一次面接。スーツ着用、受付3F。'},
-            {id:2,company:'△△テック',type:'deadline',date:add(8),time:'',status:'applied',memo:'エントリーシート提出期限'},
-            {id:3,company:'□□銀行',type:'exam',date:add(11),time:'13:00',status:'exam',memo:'会場：千代田区○○ビル5F'},
-            {id:4,company:'○○商事',type:'interview',date:add(21),time:'14:00',status:'interview',memo:'二次面接（役員）'},
-            {id:5,company:'××食品',type:'seminar',date:add(3),time:'15:00',status:'considering',memo:'会社説明会（Zoom）'},
-          ];
-        }
-        saveJ();
-      } else {
-        events = fbEvents;
-        coInfo = fbCoInfo;
-        nextId = events.length ? Math.max(...events.map(e=>e.id))+1 : 1;
-        renderAll();
-        if(!fbReady){
-          fbReady=true;
-          const si=document.getElementById('sync-indicator');
-          const sip=document.getElementById('sync-indicator-pc');
-          if(si){si.textContent='☁️ 同期済';si.style.color='var(--green)';}
-          if(sip){sip.textContent='☁️ クラウド同期済';sip.style.color='var(--green)';}
-        }
-      }
-    });
+  // ログイン画面制御
+  function showLoginScreen(){
+    document.getElementById('login-screen').style.display='flex';
+    document.querySelector('.app').style.display='none';
+    document.querySelector('.mobile-topbar') && (document.querySelector('.mobile-topbar').style.display='none');
+    document.querySelector('.mobile-tabbar') && (document.querySelector('.mobile-tabbar').style.display='none');
   }
-  setTimeout(startSync, 800);
+  function showAppScreen(user){
+    document.getElementById('login-screen').style.display='none';
+    document.querySelector('.app').style.display='flex';
+    // ユーザー名を表示
+    const si=document.getElementById('sync-indicator');
+    const sip=document.getElementById('sync-indicator-pc');
+    const name=user.displayName||user.email||'ユーザー';
+    if(si)si.textContent=`${name.split(' ')[0]}さん`;
+    if(sip)sip.textContent=`ログイン中：${name}`;
+  }
+
+  // Firebase Auth コールバック
+  window._onLogin = function(user){
+    showAppScreen(user);
+  };
+  window._onLogout = function(){
+    events=[];coInfo={};
+    showLoginScreen();
+  };
+  window._onDataUpdate = function(fbEvents, fbCoInfo){
+    if(fbEvents === null){
+      // 初回：空データで開始
+      events=[];coInfo={};
+      saveJ();
+    } else {
+      events=fbEvents;
+      coInfo=fbCoInfo;
+      nextId=events.length?Math.max(...events.map(e=>e.id))+1:1;
+      renderAll();
+      const si=document.getElementById('sync-indicator');
+      const sip=document.getElementById('sync-indicator-pc');
+      if(si&&si.style.color!=='var(--green)'){si.style.color='var(--green)';}
+      if(sip&&!sip.textContent.includes('☁️')){
+        sip.textContent='☁️ '+sip.textContent;
+      }
+    }
+  };
+
+  // 初期状態はログイン画面
+  showLoginScreen();
+  setTimeout(()=>{
+    // Authの初期化を待つ（既にログイン済みならshowAppScreenが呼ばれる）
+    if(!window._fbLogin) setTimeout(()=>{
+      document.getElementById('google-login-btn').addEventListener('click',()=>window._fbLogin&&window._fbLogin());
+    }, 500);
+    document.getElementById('google-login-btn').addEventListener('click',()=>window._fbLogin&&window._fbLogin());
+  }, 300);
 
   let nextId=events.length?Math.max(...events.map(e=>e.id))+1:1;
 
