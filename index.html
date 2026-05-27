@@ -105,11 +105,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .cal-cell.today{border-color:var(--blue)}.cal-cell.today .cal-date{color:var(--blue);font-weight:700}
 .cal-date{font-size:12px;font-weight:500;color:var(--text-sub);margin-bottom:2px;font-family:'DM Mono',monospace;text-align:center}
 .cal-dot{font-size:0;width:6px;height:6px;border-radius:50%;margin:1px auto;display:block}
-.t-interview{background:var(--blue)}
-.t-seminar{background:var(--purple)}
-.t-deadline{background:var(--red)}
-.t-exam{background:var(--amber)}
-.t-other{background:var(--green)}
+.t-interview{background:var(--blue-bg);color:var(--blue-text)}
+.t-seminar{background:var(--purple-bg);color:var(--purple-text)}
+.t-deadline{background:var(--red-bg);color:var(--red-text)}
+.t-exam{background:var(--amber-bg);color:var(--amber-text)}
+.t-other{background:var(--green-bg);color:var(--green-text)}
 .cal-dot-label{font-size:8px;padding:1px 3px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;font-weight:500}
 
 /* Company */
@@ -233,7 +233,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="sidebar-footer">
       <div class="sidebar-stats" id="sidebar-stats"></div>
       <div style="margin-top:8px;font-size:11px" id="sync-indicator-pc">⏳ 接続中...</div>
-      <button onclick="window._fbLogout&&window._fbLogout()" style="margin-top:10px;width:100%;padding:7px;background:var(--surface2);border:1px solid var(--border-md);border-radius:var(--radius);font-size:12px;cursor:pointer;color:var(--text-sub);font-family:inherit">ログアウト</button>
+      <button onclick="window._fbLogout&&window._fbLogout()" style="margin-top:10px;width:100%;padding:7px;background:var(--red-bg);border:1px solid var(--red-text);border-radius:var(--radius);font-size:12px;cursor:pointer;color:var(--red-text);font-family:inherit;font-weight:500">🚪 ログアウト</button>
     </div>
   </aside>
 
@@ -459,6 +459,19 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
 </div>
 
+<!-- 確認ダイアログ -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">🗑</div>
+    <div class="confirm-title" id="confirm-title">削除しますか？</div>
+    <div class="confirm-msg" id="confirm-msg">この操作は取り消せません。</div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline" id="confirm-cancel" style="flex:1">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-ok" style="flex:1">削除する</button>
+    </div>
+  </div>
+</div>
+
 <!-- ログイン画面 -->
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px">
   <div style="text-align:center">
@@ -645,7 +658,23 @@ onAuthStateChanged(auth, (user) => {
   function todayStr(){return new Date().toISOString().slice(0,10);}
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function allNames(){const s=new Set();events.forEach(e=>s.add(e.company));Object.keys(coInfo).forEach(k=>s.add(k));return[...s].sort();}
-  function coStatus(n){if(coInfo[n]?.status)return coInfo[n].status;const ev=events.filter(e=>e.company===n);return ev.length?ev[ev.length-1].status:'considering';}
+  function coStatus(n){if(coInfo[n]&&coInfo[n].status)return coInfo[n].status;const ev=events.filter(e=>e.company===n);return ev.length?ev[ev.length-1].status:'considering';}
+
+  /* カスタム確認ダイアログ */
+  function showConfirm({icon='🗑', title='削除しますか？', msg='この操作は取り消せません。', okLabel='削除する', okClass='btn-danger', onOk}){
+    document.getElementById('confirm-icon').textContent=icon;
+    document.getElementById('confirm-title').textContent=title;
+    document.getElementById('confirm-msg').textContent=msg;
+    const okBtn=document.getElementById('confirm-ok');
+    okBtn.textContent=okLabel;
+    okBtn.className=`btn ${okClass}`;
+    okBtn.style.flex='1';
+    document.getElementById('confirm-overlay').classList.add('open');
+    const close=()=>document.getElementById('confirm-overlay').classList.remove('open');
+    okBtn.onclick=()=>{close();onOk&&onOk();};
+    document.getElementById('confirm-cancel').onclick=close;
+    document.getElementById('confirm-overlay').onclick=(e)=>{if(e.target===e.currentTarget)close();};
+  }
 
   /* Drawer */
   function openDrawer(){document.getElementById('drawer').classList.add('open');document.getElementById('drawer-overlay').classList.add('open');}
@@ -874,9 +903,14 @@ onAuthStateChanged(auth, (user) => {
   }
 
   async function deleteEvent(id){
-    if(!confirm('この予定を削除しますか？'))return;
-    events=events.filter(e=>e.id!==id);
-    await saveJ();showToast('削除しました');renderAll();
+    showConfirm({
+      icon:'🗑', title:'予定を削除しますか？', msg:'この操作は取り消せません。',
+      okLabel:'削除する', okClass:'btn-danger',
+      onOk: async()=>{
+        events=events.filter(e=>e.id!==id);
+        await saveJ();showToast('削除しました');renderAll();
+      }
+    });
   }
 
   /* Event detail */
@@ -911,10 +945,15 @@ onAuthStateChanged(auth, (user) => {
       ev.memo?{label:'メモ',value:`<span class="ev-detail-memo">${esc(ev.memo)}</span>`}:null,
     ].filter(Boolean);
     document.getElementById('evd-rows').innerHTML=rows.map(r=>`<div class="ev-detail-row"><span class="ev-detail-label">${r.label}</span><span class="ev-detail-value">${r.value}</span></div>`).join('');
-    document.getElementById('evd-delete').onclick=async()=>{
-      if(!confirm('この予定を削除しますか？'))return;
-      events=events.filter(e=>e.id!==id);
-      await saveJ();closeEvDetail();showToast('削除しました');renderAll();
+    document.getElementById('evd-delete').onclick=()=>{
+      showConfirm({
+        icon:'🗑', title:'予定を削除しますか？', msg:'この操作は取り消せません。',
+        okLabel:'削除する', okClass:'btn-danger',
+        onOk: async()=>{
+          events=events.filter(e=>e.id!==id);
+          await saveJ();closeEvDetail();showToast('削除しました');renderAll();
+        }
+      });
     };
     document.getElementById('evd-edit').onclick=()=>{closeEvDetail();openEventModal(null,id);};
     document.getElementById('evd-add-same-day').onclick=()=>{closeEvDetail();openEventModal(ev.date);};
@@ -1009,14 +1048,28 @@ onAuthStateChanged(auth, (user) => {
 
   async function deleteCompany(){
     if(!currentCo)return;
-    if(!confirm(`「${currentCo}」を削除しますか？\n関連する予定も全て削除されます。`))return;
-    delete coInfo[currentCo];
-    events=events.filter(e=>e.company!==currentCo);
-    await saveJ();
-    closeCoDetail();showToast('削除しました');renderAll();
+    showConfirm({
+      icon:'🏢', title:`「${currentCo}」を削除しますか？`, msg:'関連する予定も全て削除されます。',
+      okLabel:'削除する', okClass:'btn-danger',
+      onOk: async()=>{
+        delete coInfo[currentCo];
+        events=events.filter(e=>e.company!==currentCo);
+        await saveJ();
+        closeCoDetail();showToast('削除しました');renderAll();
+      }
+    });
   }
 
-  /* Toast */
+  /* Confirm modal */
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,10,10,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:2000;padding:1rem}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--surface);border-radius:var(--radius-xl);padding:1.5rem;width:100%;max-width:320px;box-shadow:0 20px 60px rgba(0,0,0,.15);text-align:center}
+.confirm-icon{font-size:36px;margin-bottom:12px}
+.confirm-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.confirm-msg{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:1.25rem}
+.confirm-btns{display:flex;gap:8px}
+
+/* Toast */
   function showToast(msg){
     const t=document.getElementById('toast');
     t.textContent=msg;t.classList.add('show');
