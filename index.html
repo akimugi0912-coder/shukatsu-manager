@@ -217,6 +217,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   .legend-item{font-size:9px}
   .form-row-2{grid-template-columns:1fr}
 }
+/* Confirm modal */
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,10,10,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:2000;padding:1rem}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--surface);border-radius:var(--radius-xl);padding:1.5rem;width:100%;max-width:320px;box-shadow:0 20px 60px rgba(0,0,0,.15);text-align:center}
+.confirm-icon{font-size:36px;margin-bottom:12px}
+.confirm-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.confirm-msg{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:1.25rem}
+.confirm-btns{display:flex;gap:8px}
 </style>
 </head>
 <body>
