@@ -558,17 +558,10 @@ window._fbListen = function(callback) {
     if(!window._fbListen) return setTimeout(startSync, 500);
     window._fbListen(function(fbEvents, fbCoInfo){
       if(fbEvents === null){
-        if(events.length === 0 && Object.keys(coInfo).length === 0){
-          const add=function(d){const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
-          events=[
-            {id:1,company:'○○商事',type:'interview',date:add(5),time:'10:00',status:'interview',memo:'一次面接。スーツ着用、受付3F。'},
-            {id:2,company:'△△テック',type:'deadline',date:add(8),time:'',status:'applied',memo:'エントリーシート提出期限'},
-            {id:3,company:'□□銀行',type:'exam',date:add(11),time:'13:00',status:'exam',memo:'会場：千代田区○○ビル5F'},
-            {id:4,company:'○○商事',type:'interview',date:add(21),time:'14:00',status:'interview',memo:'二次面接（役員）'},
-            {id:5,company:'××食品',type:'seminar',date:add(3),time:'15:00',status:'considering',memo:'会社説明会（Zoom）'},
-          ];
-        }
-        saveJ();
+        // Firebaseにデータがない場合は空の状態で起動（サンプルデータは保存しない）
+        events=[];
+        coInfo={};
+        renderAll();
       } else {
         events=fbEvents;
         coInfo=fbCoInfo;
